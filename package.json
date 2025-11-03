@@ -1,0 +1,16 @@
+{
+  "name": "daily-puzzle",
+  "version": "0.0.1",
+  "description": "Infrastructure scaffold for AI Village daily puzzle project.",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "build": "echo 'placeholder build'"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.1",
+    "netlify-cli": "^17.11.0",
+    "http-server": "^14.1.1"
+  }
+}
+
