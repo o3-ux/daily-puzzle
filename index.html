@@ -1,15 +1,903 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Daily Puzzle</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connections Daily</title>
   <style>
-    body { font-family: system-ui, sans-serif; display:flex; align-items:center; justify-content:center; height:100vh; margin:0; }
-    h1 { font-size:2rem; color:#333; }
+    :root {
+      color-scheme: light dark;
+      --bg: #121212;
+      --surface: #1e1e1e;
+      --surface-alt: rgba(255, 255, 255, 0.06);
+      --text: #f5f5f5;
+      --muted: #9ca3af;
+      --accent: #f9e65c;
+      --danger: #ef5350;
+      --border-radius: 12px;
+      --transition-speed: 0.18s;
+      --tile-size: min(120px, 20vw);
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #263238 0%, #111822 45%, #0b0f17 100%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 32px 16px 64px;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 30% 20%, rgba(66, 165, 245, 0.25), transparent 50%),
+                  radial-gradient(circle at 70% 10%, rgba(171, 71, 188, 0.2), transparent 50%);
+      pointer-events: none;
+      z-index: -2;
+    }
+
+    .app {
+      width: min(720px, 100%);
+      background: rgba(17, 24, 39, 0.7);
+      backdrop-filter: blur(20px);
+      border-radius: var(--border-radius);
+      padding: 32px 24px 40px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      box-shadow: 0 32px 80px rgba(15, 23, 42, 0.5);
+    }
+
+    .app__header h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      letter-spacing: 0.08rem;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    .tagline {
+      margin: 8px 0 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: var(--border-radius);
+      padding: 12px 16px;
+      background: rgba(24, 35, 52, 0.65);
+      font-size: 0.95rem;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #e2e8f0;
+    }
+
+    .status-item strong {
+      font-weight: 600;
+      letter-spacing: 0.03rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .tile {
+      position: relative;
+      padding: 18px 10px;
+      border-radius: calc(var(--border-radius) - 2px);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      background: var(--surface-alt);
+      color: inherit;
+      font-size: clamp(0.95rem, 2.4vw, 1.05rem);
+      letter-spacing: 0.04rem;
+      text-transform: uppercase;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform var(--transition-speed) ease, background var(--transition-speed) ease, border var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);
+      min-height: 70px;
+    }
+
+    .tile:hover:not(.tile--solved):not(.tile--disabled) {
+      transform: translateY(-3px);
+      border-color: rgba(248, 250, 252, 0.4);
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.45);
+    }
+
+    .tile:focus-visible {
+      outline: 3px solid rgba( 66, 165, 245, 0.8);
+      outline-offset: 2px;
+    }
+
+    .tile--selected {
+      border-color: rgba(248, 250, 252, 0.55);
+      background: rgba(66, 165, 245, 0.16);
+      box-shadow: 0 14px 26px rgba(30, 64, 175, 0.35);
+    }
+
+    .tile--shake {
+      animation: tileShake 360ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+    }
+
+    @keyframes tileShake {
+      10%, 90% { transform: translateX(-1px); }
+      20%, 80% { transform: translateX(2px); }
+      30%, 50%, 70% { transform: translateX(-4px); }
+      40%, 60% { transform: translateX(4px); }
+    }
+
+    .tile--solved {
+      cursor: default;
+      color: #0f172a;
+      box-shadow: none;
+      border-color: transparent;
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    .tile--solved::after {
+      content: attr(data-group-label);
+      position: absolute;
+      inset: auto 12px 10px;
+      font-size: 0.68rem;
+      letter-spacing: 0.08rem;
+      font-weight: 700;
+      opacity: 0.75;
+    }
+
+    .tile--solved.animate {
+      animation: solvedPop 520ms cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    @keyframes solvedPop {
+      0% { transform: scale(1); }
+      30% { transform: scale(1.07); }
+      60% { transform: scale(0.97); }
+      100% { transform: scale(1); }
+    }
+
+    .group-yellow { background: linear-gradient(135deg, #f9e65c, #f7d54c); }
+    .group-green { background: linear-gradient(135deg, #66bb6a, #43a047); color: #0b1726; }
+    .group-blue { background: linear-gradient(135deg, #42a5f5, #1e88e5); color: #0b1726; }
+    .group-purple { background: linear-gradient(135deg, #ab47bc, #8e24aa); color: #0b1726; }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 12px 24px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      letter-spacing: 0.03rem;
+      cursor: pointer;
+      transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease, opacity var(--transition-speed) ease;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, rgba(249, 230, 92, 0.95), rgba(251, 192, 45, 0.95));
+      color: #1f2937;
+      box-shadow: 0 14px 24px rgba(249, 230, 92, 0.35);
+    }
+
+    .secondary-btn {
+      background: rgba(148, 163, 184, 0.18);
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      box-shadow: none;
+      transform: none;
+    }
+
+    button:not(:disabled):active {
+      transform: translateY(1px);
+    }
+
+    .message {
+      min-height: 28px;
+      text-align: center;
+      font-size: 0.95rem;
+      color: var(--muted);
+      transition: color var(--transition-speed) ease;
+    }
+
+    .message[data-type="success"] {
+      color: #86efac;
+    }
+
+    .message[data-type="error"] {
+      color: var(--danger);
+    }
+
+    .groups-panel {
+      background: rgba(15, 23, 42, 0.55);
+      border-radius: var(--border-radius);
+      padding: 20px 18px 16px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .groups-panel h2 {
+      margin: 0 0 12px;
+      font-size: 1.05rem;
+      letter-spacing: 0.04rem;
+      color: #e2e8f0;
+    }
+
+    .groups-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .group-card {
+      padding: 12px 14px;
+      border-radius: calc(var(--border-radius) - 4px);
+      background: rgba(148, 163, 184, 0.16);
+      border: 1px solid transparent;
+      font-weight: 600;
+      letter-spacing: 0.03rem;
+      color: #e2e8f0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .group-card::after {
+      content: attr(data-label);
+      position: absolute;
+      inset: auto 12px 10px;
+      font-size: 0.7rem;
+      letter-spacing: 0.08rem;
+      text-transform: uppercase;
+      opacity: 0.75;
+    }
+
+    .group-card.group-yellow {
+      background: rgba(249, 230, 92, 0.1);
+      border-color: rgba(249, 230, 92, 0.35);
+      color: #fde68a;
+    }
+
+    .group-card.group-green {
+      background: rgba(102, 187, 106, 0.12);
+      border-color: rgba(102, 187, 106, 0.3);
+      color: #bbf7d0;
+    }
+
+    .group-card.group-blue {
+      background: rgba(66, 165, 245, 0.12);
+      border-color: rgba(66, 165, 245, 0.32);
+      color: #bfdbfe;
+    }
+
+    .group-card.group-purple {
+      background: rgba(171, 71, 188, 0.12);
+      border-color: rgba(171, 71, 188, 0.3);
+      color: #e9d5ff;
+    }
+
+    .group-card.group-reveal {
+      opacity: 0.7;
+      font-style: italic;
+    }
+
+    @media (max-width: 640px) {
+      :root {
+        --tile-size: 22vw;
+      }
+
+      body {
+        padding: 20px 12px 48px;
+      }
+
+      .app {
+        padding: 24px 18px 32px;
+      }
+
+      .grid {
+        gap: 10px;
+      }
+
+      .tile {
+        padding: 16px 8px;
+        font-size: 0.92rem;
+      }
+
+      .controls {
+        flex-direction: column;
+      }
+
+      .controls button {
+        width: 100%;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>Daily Puzzle coming soon…</h1>
+  <main class="app">
+    <header class="app__header">
+      <h1>Connections Daily</h1>
+      <p class="tagline">Find four groups of connected words. You have four mistakes—choose wisely.</p>
+    </header>
+
+    <section class="status-bar" aria-live="polite">
+      <div class="status-item">
+        <strong>Mistakes</strong>
+        <span id="mistakes-count">0</span>
+        <span>/ 4</span>
+      </div>
+      <div class="status-item">
+        <strong>Groups Found</strong>
+        <span id="found-count">0</span>
+        <span>/ 4</span>
+      </div>
+      <div class="status-item">
+        <strong>Daily Puzzle</strong>
+        <span id="puzzle-date">0000-00-00</span>
+      </div>
+    </section>
+
+    <section class="grid" id="grid" role="grid" aria-label="Connections word grid"></section>
+
+    <div class="controls">
+      <button class="primary-btn" id="submit-btn" type="button" disabled>Submit</button>
+      <button class="secondary-btn" id="clear-btn" type="button" disabled>Deselect</button>
+      <button class="secondary-btn" id="share-btn" type="button" disabled>Share</button>
+    </div>
+
+    <div class="message" id="status-message" role="status" aria-live="polite"></div>
+
+    <section class="groups-panel" aria-label="Found groups">
+      <h2>Found Groups</h2>
+      <ul class="groups-list" id="found-groups"></ul>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const MAX_MISTAKES = 4;
+      const STORAGE_KEY = "connections-daily-state-v1";
+      const difficulties = {
+        yellow: { label: "Easy", emoji: "🟨" },
+        green: { label: "Medium", emoji: "🟩" },
+        blue: { label: "Hard", emoji: "🟦" },
+        purple: { label: "Tricky", emoji: "🟪" }
+      };
+
+      const puzzles = [
+        {
+          id: "colors-animals",
+          groups: [
+            {
+              id: "colors",
+              title: "Colors",
+              difficulty: "yellow",
+              words: ["RED", "BLUE", "GREEN", "YELLOW"],
+              description: "Common colors"
+            },
+            {
+              id: "animals",
+              title: "Animals",
+              difficulty: "green",
+              words: ["DOG", "CAT", "BIRD", "FISH"],
+              description: "Household pets"
+            },
+            {
+              id: "instruments",
+              title: "Instruments",
+              difficulty: "blue",
+              words: ["DRUM", "PIANO", "FLUTE", "VIOLIN"],
+              description: "Musical instruments"
+            },
+            {
+              id: "elements",
+              title: "Elements",
+              difficulty: "purple",
+              words: ["IRON", "NEON", "GOLD", "TIN"],
+              description: "Chemical elements"
+            }
+          ]
+        },
+        {
+          id: "breakfast-travel",
+          groups: [
+            {
+              id: "breakfast",
+              title: "Breakfast Bites",
+              difficulty: "yellow",
+              words: ["WAFFLE", "BAGEL", "OMELET", "PANCAKE"],
+              description: "Breakfast foods"
+            },
+            {
+              id: "travel",
+              title: "Ticketed Trips",
+              difficulty: "green",
+              words: ["TRAIN", "FERRY", "FLIGHT", "CRUISE"],
+              description: "Trips requiring a ticket"
+            },
+            {
+              id: "clouds",
+              title: "Cloud Shapes",
+              difficulty: "blue",
+              words: ["CIRRUS", "CUMULUS", "STRATUS", "NIMBUS"],
+              description: "Types of clouds"
+            },
+            {
+              id: "doublemeanings",
+              title: "Two-Face Words",
+              difficulty: "purple",
+              words: ["PRESENT", "MATCH", "BAT", "OBJECT"],
+              description: "Words that are both nouns and verbs"
+            }
+          ]
+        },
+        {
+          id: "garden-music",
+          groups: [
+            {
+              id: "herbs",
+              title: "Fragrant Herbs",
+              difficulty: "yellow",
+              words: ["BASIL", "THYME", "ROSEMARY", "SAGE"],
+              description: "Culinary herbs"
+            },
+            {
+              id: "stringquartet",
+              title: "String Quartet",
+              difficulty: "green",
+              words: ["CELLO", "VIOLA", "VIOLIN", "BASS"],
+              description: "Stringed instruments in ensembles"
+            },
+            {
+              id: "energy",
+              title: "Energy Sources",
+              difficulty: "blue",
+              words: ["SOLAR", "WIND", "NUCLEAR", "HYDRO"],
+              description: "Ways to generate electricity"
+            },
+            {
+              id: "beforefire",
+              title: "___ Fire",
+              difficulty: "purple",
+              words: ["RAPID", "OPEN", "FRIENDLY", "CEASE"],
+              description: "Words that can precede “fire”"
+            }
+          ]
+        },
+        {
+          id: "sports-literature",
+          groups: [
+            {
+              id: "ball-sports",
+              title: "Ball Sports",
+              difficulty: "yellow",
+              words: ["SOCCER", "TENNIS", "RUGBY", "HOCKEY"],
+              description: "Sports played with a ball or puck"
+            },
+            {
+              id: "authors",
+              title: "Classic Authors",
+              difficulty: "green",
+              words: ["AUSTEN", "ORWELL", "TWAIN", "BRONTE"],
+              description: "Famous novelists"
+            },
+            {
+              id: "mathwords",
+              title: "Math Prefixes",
+              difficulty: "blue",
+              words: ["UNI", "BI", "TRI", "HEXA"],
+              description: "Prefixes used in math"
+            },
+            {
+              id: "homophones",
+              title: "Sound-Alikes",
+              difficulty: "purple",
+              words: ["KNIGHT", "FLEW", "SCENE", "PAIN"],
+              description: "Words with common-sounding counterparts"
+            }
+          ]
+        }
+      ];
+
+      const tileContainer = document.getElementById("grid");
+      const submitBtn = document.getElementById("submit-btn");
+      const clearBtn = document.getElementById("clear-btn");
+      const shareBtn = document.getElementById("share-btn");
+      const statusMessage = document.getElementById("status-message");
+      const mistakesCount = document.getElementById("mistakes-count");
+      const foundCount = document.getElementById("found-count");
+      const foundGroupsList = document.getElementById("found-groups");
+      const puzzleDateEl = document.getElementById("puzzle-date");
+
+      let selectedWords = new Set();
+      let tilesByWord = new Map();
+      let puzzle;
+      let state;
+
+      function getTodayKey() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return today.toISOString().slice(0, 10);
+      }
+
+      function getDayNumber(dateKey) {
+        const [year, month, day] = dateKey.split("-").map(Number);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        return Math.floor(date.getTime() / 86400000);
+      }
+
+      function xmur3(str) {
+        let h = 1779033703 ^ str.length;
+        for (let i = 0; i < str.length; i++) {
+          h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+          h = (h << 13) | (h >>> 19);
+        }
+        return function () {
+          h = Math.imul(h ^ (h >>> 16), 2246822507);
+          h = Math.imul(h ^ (h >>> 13), 3266489909);
+          return (h ^= h >>> 16) >>> 0;
+        };
+      }
+
+      function mulberry32(seed) {
+        let t = seed >>> 0;
+        return function () {
+          t = (t + 0x6d2b79f5) | 0;
+          let r = Math.imul(t ^ (t >>> 15), 1 | t);
+          r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+          return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+        };
+      }
+
+      function createSeededRandom(seedText) {
+        return mulberry32(xmur3(seedText)());
+      }
+
+      function shuffleWithRng(array, randomFn) {
+        const arr = [...array];
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(randomFn() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      }
+
+      function createInitialState(dayKey, puzzleId, wordOrder) {
+        return {
+          dayKey,
+          puzzleId,
+          wordOrder,
+          solvedGroups: [],
+          resolvedWords: {},
+          mistakes: 0,
+          shareSequence: [],
+          gameOver: false
+        };
+      }
+
+      function loadState(dayKey, puzzleId) {
+        try {
+          const raw = window.localStorage.getItem(STORAGE_KEY);
+          if (!raw) return null;
+          const data = JSON.parse(raw);
+          if (data.dayKey === dayKey && data.puzzleId === puzzleId) {
+            return data;
+          }
+        } catch (error) {
+          console.warn("Unable to load saved state", error);
+        }
+        return null;
+      }
+
+      function saveState() {
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (error) {
+          console.warn("Unable to persist state", error);
+        }
+      }
+
+      function selectTile(tile) {
+        if (state.gameOver || tile.classList.contains("tile--solved")) {
+          return;
+        }
+        const word = tile.dataset.word;
+        if (selectedWords.has(word)) {
+          selectedWords.delete(word);
+          tile.classList.remove("tile--selected");
+          tile.setAttribute("aria-pressed", "false");
+        } else {
+          if (selectedWords.size === 4) {
+            setStatus("You can only select four words at a time.", "info");
+            tile.classList.add("tile--shake");
+            setTimeout(() => tile.classList.remove("tile--shake"), 350);
+            return;
+          }
+          selectedWords.add(word);
+          tile.classList.add("tile--selected");
+          tile.setAttribute("aria-pressed", "true");
+        }
+        updateControlState();
+      }
+
+      function clearSelection() {
+        selectedWords.forEach((word) => {
+          const tile = tilesByWord.get(word);
+          if (tile) {
+            tile.classList.remove("tile--selected");
+            tile.setAttribute("aria-pressed", "false");
+          }
+        });
+        selectedWords.clear();
+        updateControlState();
+      }
+
+      function findMatchingGroup(words) {
+        return puzzle.groups.find((group) => {
+          if (state.solvedGroups.includes(group.id)) {
+            return false;
+          }
+          const groupWords = new Set(group.words);
+          return words.every((word) => groupWords.has(word));
+        });
+      }
+
+      function revealUnsolvedGroups() {
+        puzzle.groups.forEach((group) => {
+          if (!state.solvedGroups.includes(group.id)) {
+            appendGroupCard(group, true);
+          }
+        });
+      }
+
+      function handleCorrectGroup(group) {
+        state.solvedGroups.push(group.id);
+        state.shareSequence.push(group.difficulty);
+        group.words.forEach((word) => {
+          state.resolvedWords[word] = group.id;
+          const tile = tilesByWord.get(word);
+          if (tile) {
+            tile.classList.remove("tile--selected");
+            tile.classList.add("tile--solved", `group-${group.difficulty}`, "animate");
+            tile.dataset.groupLabel = `${group.title.toUpperCase()} • ${difficulties[group.difficulty].label}`;
+            tile.setAttribute("aria-label", `${word}, part of ${group.title}`);
+            tile.setAttribute("aria-pressed", "false");
+            tile.setAttribute("aria-disabled", "true");
+            setTimeout(() => tile.classList.remove("animate"), 700);
+          }
+        });
+        appendGroupCard(group);
+        const found = state.solvedGroups.length;
+        foundCount.textContent = found;
+        setStatus(`Nice! ${group.title} — ${group.description}`, "success");
+        if (found === puzzle.groups.length) {
+          state.gameOver = true;
+          setStatus("Perfect connections! Share your streak.", "success");
+        }
+      }
+
+      function submitSelection() {
+        if (state.gameOver) {
+          return;
+        }
+        if (selectedWords.size !== 4) {
+          setStatus("Pick four words to submit a group.", "info");
+          return;
+        }
+        const selection = Array.from(selectedWords);
+        const match = findMatchingGroup(selection);
+        if (match) {
+          handleCorrectGroup(match);
+        } else {
+          state.mistakes += 1;
+          mistakesCount.textContent = state.mistakes;
+          setStatus(`Not quite right. ${MAX_MISTAKES - state.mistakes} mistakes remaining.`, "error");
+          selection.forEach((word) => {
+            const tile = tilesByWord.get(word);
+            if (tile) {
+              tile.classList.add("tile--shake");
+              setTimeout(() => tile.classList.remove("tile--shake"), 400);
+            }
+          });
+          if (state.mistakes >= MAX_MISTAKES) {
+            state.gameOver = true;
+            setStatus("Game over! Better luck tomorrow. Revealing remaining groups.", "error");
+            revealUnsolvedGroups();
+          }
+        }
+        clearSelection();
+        saveState();
+        updateControlState();
+        updateShareState();
+      }
+
+      function updateControlState() {
+        submitBtn.disabled = selectedWords.size !== 4 || state.gameOver;
+        clearBtn.disabled = selectedWords.size === 0 || state.gameOver;
+        shareBtn.disabled = state.shareSequence.length === 0;
+      }
+
+      function appendGroupCard(group, reveal = false) {
+        const existing = document.querySelector(`[data-group-card="${group.id}"]`);
+        if (existing) {
+          if (reveal) {
+            existing.classList.add("group-reveal");
+          }
+          return;
+        }
+        const li = document.createElement("li");
+        li.classList.add("group-card", `group-${group.difficulty}`);
+        if (reveal) {
+          li.classList.add("group-reveal");
+        }
+        li.dataset.groupCard = group.id;
+        li.dataset.label = `${group.title} • ${difficulties[group.difficulty].label}`;
+        li.textContent = group.words.join(", ");
+        foundGroupsList.appendChild(li);
+      }
+
+      function setStatus(message, type = "info") {
+        statusMessage.textContent = message;
+        statusMessage.dataset.type = type;
+      }
+
+      function updateShareState() {
+        shareBtn.disabled = state.shareSequence.length === 0;
+      }
+
+      function shareResults() {
+        const emojiMap = {
+          yellow: "🟨",
+          green: "🟩",
+          blue: "🟦",
+          purple: "🟪"
+        };
+        const failures = state.gameOver && state.solvedGroups.length < puzzle.groups.length
+          ? puzzle.groups.length - state.solvedGroups.length
+          : 0;
+        const puzzleLine = `Connections Daily ${state.dayKey}`;
+        const mistakesLine = `Mistakes: ${state.mistakes}/${MAX_MISTAKES}`;
+        const gridLine = [
+          ...state.shareSequence.map((difficulty) => emojiMap[difficulty]),
+          ...Array(failures).fill("⬛")
+        ].join("");
+        const summary = `${puzzleLine}\n${mistakesLine}\n${gridLine}\n\nPlay at Connections Daily`;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(summary)
+            .then(() => setStatus("Copied results to clipboard!", "success"))
+            .catch(() => {
+              setStatus("Copy failed. Results shown below.", "error");
+              window.prompt("Copy your results:", summary);
+            });
+        } else {
+          setStatus("Copy not supported. Results shown below.", "error");
+          window.prompt("Copy your results:", summary);
+        }
+      }
+
+      function renderGrid(wordOrder) {
+        tileContainer.innerHTML = "";
+        tilesByWord.clear();
+        wordOrder.forEach((word) => {
+          const tile = document.createElement("button");
+          tile.type = "button";
+          tile.className = "tile";
+          tile.dataset.word = word;
+          tile.textContent = word;
+          tile.setAttribute("role", "gridcell");
+          tile.setAttribute("aria-pressed", "false");
+          tile.setAttribute("aria-disabled", "false");
+          tile.addEventListener("click", () => selectTile(tile));
+          tileContainer.appendChild(tile);
+          tilesByWord.set(word, tile);
+        });
+      }
+
+      function restoreState() {
+        mistakesCount.textContent = state.mistakes;
+        foundCount.textContent = state.solvedGroups.length;
+        puzzleDateEl.textContent = state.dayKey;
+
+        // restore solved groups
+        state.solvedGroups.forEach((groupId) => {
+          const group = puzzle.groups.find((g) => g.id === groupId);
+          if (!group) return;
+          appendGroupCard(group);
+          group.words.forEach((word) => {
+            const tile = tilesByWord.get(word);
+            if (tile) {
+              tile.classList.add("tile--solved", `group-${group.difficulty}`);
+              tile.dataset.groupLabel = `${group.title.toUpperCase()} • ${difficulties[group.difficulty].label}`;
+              tile.setAttribute("aria-label", `${word}, part of ${group.title}`);
+              tile.setAttribute("aria-pressed", "false");
+              tile.setAttribute("aria-disabled", "true");
+            }
+          });
+        });
+
+        if (state.gameOver && state.solvedGroups.length < puzzle.groups.length) {
+          revealUnsolvedGroups();
+          setStatus("Game over! Come back tomorrow for a new puzzle.", "error");
+        } else if (state.gameOver) {
+          setStatus("Puzzle complete! Share your results.", "success");
+        } else {
+          setStatus("Select four related words to form a group.", "info");
+        }
+      }
+
+      function hydrateGame() {
+        const dayKey = getTodayKey();
+        const dayNumber = getDayNumber(dayKey);
+        puzzle = puzzles[dayNumber % puzzles.length];
+        const rng = createSeededRandom(`${dayKey}-${puzzle.id}`);
+        const words = puzzle.groups.flatMap((group) => group.words);
+
+        const loadedState = loadState(dayKey, puzzle.id);
+        if (loadedState) {
+          state = loadedState;
+        } else {
+          const shuffled = shuffleWithRng(words, rng);
+          state = createInitialState(dayKey, puzzle.id, shuffled);
+          saveState();
+        }
+
+        if (!state.wordOrder || state.wordOrder.length !== words.length) {
+          state.wordOrder = shuffleWithRng(words, rng);
+          saveState();
+        }
+
+        renderGrid(state.wordOrder);
+        restoreState();
+        updateControlState();
+        updateShareState();
+      }
+
+      submitBtn.addEventListener("click", submitSelection);
+      clearBtn.addEventListener("click", clearSelection);
+      shareBtn.addEventListener("click", shareResults);
+
+      hydrateGame();
+    }());
+  </script>
 </body>
 </html>

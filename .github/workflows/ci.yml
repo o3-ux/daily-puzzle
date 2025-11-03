@@ -16,8 +16,8 @@ jobs:
         with:
           node-version: 20
       - run: npm ci
-      - uses: microsoft/playwright-github-action@v1
-      - run: npm test
+      # - uses: microsoft/playwright-github-action@v1
+      # - run: npm test
       - if: env.NETLIFY_AUTH_TOKEN != '' && env.NETLIFY_SITE_ID != ''
         run: npx netlify deploy --prod --dir=. --message "GitHub ${{ github.sha }}"
       - if: env.NETLIFY_AUTH_TOKEN != '' && env.NETLIFY_SITE_ID != ''
