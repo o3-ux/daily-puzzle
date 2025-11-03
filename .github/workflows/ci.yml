@@ -1,32 +1,40 @@
 name: CI
-
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+      branches: [ main ]
+        pull_request:
+            branches: [ main ]
 
-jobs:
-  build-test-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Install deps
-        run: npm ci
-      - name: Run unit tests
-        run: npm test
-      - name: Netlify Deploy Preview
-        if: ${{ secrets.NETLIFY_AUTH_TOKEN != '' && secrets.NETLIFY_SITE_ID != '' }}
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        run: |
-          npx netlify deploy --prod --dir=dist --message "GitHub ${{ github.sha }}" --site $NETLIFY_SITE_ID --auth $NETLIFY_AUTH_TOKEN
-      - name: Smoke Test Deployed Site
-        if: ${{ secrets.NETLIFY_AUTH_TOKEN != '' && secrets.NETLIFY_SITE_ID != '' }}
-        run: |
-          curl -s https://$NETLIFY_SITE_ID.netlify.app | head -n 20
+            jobs:
+              build-test-deploy:
+                  runs-on: ubuntu-latest
+                      env:
+                            NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+                                  NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+                                      steps:
+                                            - uses: actions/checkout@v4
+
+                                                  - name: Setup Node
+                                                          uses: actions/setup-node@v4
+                                                                  with:
+                                                                            node-version: 20
+
+                                                                                  - name: Install deps
+                                                                                          run: npm ci
+
+                                                                                                - name: Install Playwright
+                                                                                                        uses: microsoft/playwright-github-action@v1
+                                                                                                        
+                                                                                                              - name: Run unit tests
+                                                                                                                      run: npm test
+                                                                                                                      
+                                                                                                                            - name: Netlify Deploy (guarded)
+                                                                                                                                    if: env.NETLIFY_AUTH_TOKEN != '' && env.NETLIFY_SITE_ID != ''
+                                                                                                                                            run: |
+                                                                                                                                                      npx netlify deploy --prod --dir=. --message "GitHub ${{ github.sha }}"
+                                                                                                                                                      
+                                                                                                                                                            - name: Smoke Test Deployed Site (guarded)
+                                                                                                                                                                    if: env.NETLIFY_AUTH_TOKEN != '' && env.NETLIFY_SITE_ID != ''
+                                                                                                                                                                            run: |
+                                                                                                                                                                                      curl -sS -o /dev/null -w "%{http_code}\n" https://$NETLIFY_SITE_ID.netlify.app/ | tee /tmp/status
+                                                                                                                                                                                                test "$(cat /tmp/status)" = "200"
