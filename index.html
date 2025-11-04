@@ -717,6 +717,11 @@
       }
 
       function submitSelection() {
+        if (window.__submitLock) {
+          return;
+        }
+        window.__submitLock = true;
+        requestAnimationFrame(() => { window.__submitLock = false; });
         if (state.gameOver) {
           return;
         }
