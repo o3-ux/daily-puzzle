@@ -721,39 +721,42 @@
           return;
         }
         window.__submitLock = true;
-        requestAnimationFrame(() => { window.__submitLock = false; });
-        if (state.gameOver) {
-          return;
-        }
-        if (selectedWords.size !== 4) {
-          setStatus("Pick four words to submit a group.", "info");
-          return;
-        }
-        const selection = Array.from(selectedWords);
-        const match = findMatchingGroup(selection);
-        if (match) {
-          handleCorrectGroup(match);
-        } else {
-          state.mistakes += 1;
-          mistakesCount.textContent = state.mistakes;
-          setStatus(`Not quite right. ${MAX_MISTAKES - state.mistakes} mistakes remaining.`, "error");
-          selection.forEach((word) => {
-            const tile = tilesByWord.get(word);
-            if (tile) {
-              tile.classList.add("tile--shake");
-              setTimeout(() => tile.classList.remove("tile--shake"), 400);
-            }
-          });
-          if (state.mistakes >= MAX_MISTAKES) {
-            state.gameOver = true;
-            setStatus("Game over! Better luck tomorrow. Revealing remaining groups.", "error");
-            revealUnsolvedGroups();
+        try {
+          if (state.gameOver) {
+            return;
           }
+          if (selectedWords.size !== 4) {
+            setStatus("Pick four words to submit a group.", "info");
+            return;
+          }
+          const selection = Array.from(selectedWords);
+          const match = findMatchingGroup(selection);
+          if (match) {
+            handleCorrectGroup(match);
+          } else {
+            state.mistakes += 1;
+            mistakesCount.textContent = state.mistakes;
+            setStatus(`Not quite right. ${MAX_MISTAKES - state.mistakes} mistakes remaining.`, "error");
+            selection.forEach((word) => {
+              const tile = tilesByWord.get(word);
+              if (tile) {
+                tile.classList.add("tile--shake");
+                setTimeout(() => tile.classList.remove("tile--shake"), 400);
+              }
+            });
+            if (state.mistakes >= MAX_MISTAKES) {
+              state.gameOver = true;
+              setStatus("Game over! Better luck tomorrow. Revealing remaining groups.", "error");
+              revealUnsolvedGroups();
+            }
+          }
+          clearSelection();
+          saveState();
+          updateControlState();
+          updateShareState();
+        } finally {
+          window.__submitLock = false;
         }
-        clearSelection();
-        saveState();
-        updateControlState();
-        updateShareState();
       }
 
       function updateControlState() {
