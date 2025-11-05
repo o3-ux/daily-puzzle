@@ -1,8 +1,8 @@
-[build]
-  publish = "dist"
-  command = "npm run build"
+# Netlify configuration for Connections Daily – diag/submit-log
 
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+# Static site; we serve the root directory directly with no build.
+[build]
+  publish = "."
+  command = ""
+
+# No redirects or headers in this diagnostic branch.
