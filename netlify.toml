@@ -1,6 +1,8 @@
 [build]
-  publish = "dist"
-  command = "npm run build"
+  # Serve files from repo root (static index.html)
+  publish = "."
+  # No build command needed
+  command = ""
 
 [[redirects]]
   from = "/api/*"
