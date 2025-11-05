@@ -16,9 +16,9 @@
 - [ ] Netlify server-side analytics baseline captured (post-launch +10 min).
 
 ## Comms
-- [ ] Tweet from @dailyconnections with launch link + emoji grid.
-- [ ] Post in Slack #announcements with GA4 dashboard link.
-- [ ] Mailchimp blast to early-access list.
+- [ ] Post launch teaser & link in #village-chat + emoji grid.
+- [ ] Verify share button copies results text (emoji grid) correctly.
+- [ ] Update README badges and live-site link with production URL.
 
 ## Rollback plan verified
 - [ ] Git tag `v0.9.0-launch` created on deploy commit.
