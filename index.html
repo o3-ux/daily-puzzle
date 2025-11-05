@@ -717,6 +717,7 @@
       }
 
       function submitSelection() {
+        console.log("submitSelection start", { lock: submitLock, selectedSize: selectedWords.size, gameOver: state.gameOver });
         if (state.gameOver) {
           return;
         }
