@@ -824,7 +824,7 @@
           ...state.shareSequence.map((difficulty) => emojiMap[difficulty]),
           ...Array(failures).fill("⬛")
         ].join("");
-        const summary = `${puzzleLine}\n${mistakesLine}\n${gridLine}\n\nPlay at Connections Daily`;
+        const summary = `${puzzleLine}\n${mistakesLine}\n${gridLine}\n\nPlay: https://o3-ux.github.io/daily-puzzle/?utm_source=share&utm_medium=clipboard&utm_campaign=share_clipboard`;
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(summary)
             .then(() => setStatus("Copied results to clipboard!", "success"))
