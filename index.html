@@ -653,6 +653,8 @@
       }
 
       function selectTile(tile) {
+        // diagnostic
+        console.log("selectTile start", { word: tile?.dataset?.word, selectedWords: Array.from(selectedWords) });
         if (state.gameOver || tile.classList.contains("tile--solved")) {
           return;
         }
